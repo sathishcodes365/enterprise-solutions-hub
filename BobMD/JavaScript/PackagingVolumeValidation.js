@@ -52,16 +52,14 @@ function specialCharacters(executionContext) {
 }
 
 
-// Web resource: bdf_packagingvolume.js
-// Volume can't be zero (minimum 0.01) when any of Length, Width or Height has a value.
-//
+
 // Register ONLY ONE event (pass execution context as first parameter):
 //   Form OnLoad -> onFormLoad
 // onFormLoad attaches the OnChange events to all Volume, Length, Width and Height fields
 // and checks existing values when the form opens.
 
 // ---------- Form OnLoad: the only event to register ----------
-function onFormLoad(executionContext) {
+function onFormLoadPackagingValidation(executionContext) {
     var formContext = executionContext.getFormContext();
 
     // Out of Packaging (EA) fields
@@ -77,6 +75,7 @@ function onFormLoad(executionContext) {
     addChangeEvent(formContext, "bdf_inpackagingvolume", validateInPackagingVolume);
 
     // Check existing values when the form opens (warnings only, no popup)
+
     validatePackagingOnLoad(executionContext);
 }
 
@@ -99,7 +98,8 @@ function validateOutOfPackagingVolume(executionContext) {
         "bdf_outofpackagingheight",
         "bdf_outofpackagingvolume",
         "Out of Packaging Volume",
-        true
+        true,
+        getChangedField(executionContext)
     );
 }
 
@@ -113,7 +113,8 @@ function validateInPackagingVolume(executionContext) {
         "bdf_inpackagingheight",
         "bdf_inpackagingvolume",
         "In Packaging Volume",
-        true
+        true,
+        getChangedField(executionContext)
     );
 }
 
@@ -127,7 +128,7 @@ function validatePackagingOnLoad(executionContext) {
 }
 
 // ---------- Shared check ----------
-function checkVolume(formContext, lengthField, widthField, heightField, volumeField, label, showPopup) {
+function checkVolume(formContext, lengthField, widthField, heightField, volumeField, label, showPopup, changedField) {
     var length = getNumber(formContext, lengthField);
     var width = getNumber(formContext, widthField);
     var height = getNumber(formContext, heightField);
@@ -138,17 +139,26 @@ function checkVolume(formContext, lengthField, widthField, heightField, volumeFi
 
     // At least one of Length, Width or Height is greater than 0 (empty or 0 = no value)
     var hasDimensions = length > 0 || width > 0 || height > 0;
-    // Error when Volume is 0 or any value below 0.01 (empty is ignored)
-    var isZero = volume !== null && volume < 0.01;
+    var isEmpty = volume === null;
+    // Error when Volume is empty, 0, or any value below 0.01
+    var isInvalid = isEmpty || volume < 0.01;
 
-    if (hasDimensions && isZero) {
-        var message = label + " cannot be zero. Please enter at least 0.01.";
+    if (hasDimensions && isInvalid) {
+        var message = isEmpty
+            ? label + " cannot be empty. Please enter at least 0.01."
+            : label + " cannot be zero. Please enter at least 0.01.";
         var showWarnings = function () {
             // Field-level error (also stops the form from saving)
             if (volumeControl) {
                 volumeControl.setNotification(message, notificationId);
             }
         };
+
+        // Empty volume while the user is still typing dimensions: no popup, only the field error.
+        // Popup when the Volume itself was changed, or when it is 0.
+        if (isEmpty && changedField !== volumeField) {
+            showPopup = false;
+        }
 
         if (showPopup) {
             Xrm.Navigation.openAlertDialog(
@@ -158,11 +168,17 @@ function checkVolume(formContext, lengthField, widthField, heightField, volumeFi
             showWarnings();
         }
     } else {
-        // Value is valid (or dimensions are empty): no popup, clear the field error
+        // Valid, or no dimension above 0: clear the field error
         if (volumeControl) {
             volumeControl.clearNotification(notificationId);
         }
     }
+}
+
+// Name of the field that fired the OnChange event (null on load)
+function getChangedField(executionContext) {
+    var source = executionContext.getEventSource ? executionContext.getEventSource() : null;
+    return source && source.getName ? source.getName() : null;
 }
 
 function getNumber(formContext, fieldName) {
