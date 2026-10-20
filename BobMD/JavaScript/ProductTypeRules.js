@@ -41,7 +41,10 @@ function onLoad(executionContext, eventName) {
 	 var fields = [
         "bdf_outofpackaginglength",
         "bdf_outofpackagingwidth",
-        "bdf_outofpackagingheight"
+	    "bdf_outofpackagingheight",
+	    "bdf_inpackaginglength",
+	    "bdf_inpackagingwidth",
+	    "bdf_inpackagingheight"
     ];
 
     fields.forEach(function(fieldName) {
@@ -421,6 +424,9 @@ function volumeMandatory(executionContext){
 			var outofPackagingLength=formContext.getAttribute("bdf_outofpackaginglength").getValue();
 			var outofPackagingWidth=formContext.getAttribute("bdf_outofpackagingwidth").getValue();
 			var bdf_outofPackagingHeight=formContext.getAttribute("bdf_outofpackagingheight").getValue();
+			var inPackagingLength=formContext.getAttribute("bdf_inpackaginglength").getValue();
+			var inPackagingWidth=formContext.getAttribute("bdf_inpackagingwidth").getValue();
+			var inPackagingHeight=formContext.getAttribute("bdf_inpackagingheight").getValue();
 
 
         // Cheking fields contains Values are not
@@ -430,6 +436,12 @@ function volumeMandatory(executionContext){
         } else{
 			formContext.getAttribute("bdf_outofpackagingvolume").setRequiredLevel("none");
 		}
+
+        if(inPackagingLength!=null || inPackagingWidth!=null || inPackagingHeight!=null){
+			formContext.getAttribute("bdf_inpackagingvolume").setRequiredLevel("required");
+        } else{
+			formContext.getAttribute("bdf_inpackagingvolume").setRequiredLevel("none");
+        }
 	}
 
         
