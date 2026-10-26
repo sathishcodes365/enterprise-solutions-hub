@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+}
+
+#loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #e5e5e5;
+    border-top: 5px solid #0078D4;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.loading-text {
+    margin-top: 15px;
+    color: #555;
+    font-size: 16px;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: none;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="loader">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading...</div>
+</div>
+
+<iframe id="reportFrame"></iframe>
+
+<script>
+async function getConfigurationValue(key) {
+    var result = await parent.Xrm.WebApi.retrieveMultipleRecords(
+        "ssc_configuration",
+        "?$select=ssc_value&$filter=ssc_name eq '" + key + "'&$top=1"
+    );
+
+    if (!result.entities.length) {
+        throw new Error("Configuration not found: " + key);
+    }
+
+    return result.entities[0].ssc_value;
+}
+
+async function loadReport() {
+    try {
+        var autoLoginApiKey = await getConfigurationValue("R365AutoLoginApiKey");
+
+        var userId = parent.Xrm.Utility.getGlobalContext().userSettings.userId
+            .replace(/[{}]/g, "");
+
+        var user = await parent.Xrm.WebApi.retrieveRecord(
+            "systemuser",
+            userId,
+            "?$select=ssc_cmsid"
+        );
+
+        var cmdId = user.ssc_cmsid;
+
+        if (!cmdId) {
+            alert("CMS ID not found for logged in user.");
+            return;
+        }
+
+        var reportUrl = new URL("https://registrationapi365.netcomlearning.com/auth/login");
+
+        reportUrl.searchParams.set("api_key", autoLoginApiKey);
+        reportUrl.searchParams.set("portal_type", "rp");
+        reportUrl.searchParams.set("created_by", cmdId);
+        reportUrl.searchParams.set("report_key", "travel_request");
+
+        var frame = document.getElementById("reportFrame");
+
+        frame.onload = function () {
+            document.getElementById("loader").style.display = "none";
+            frame.style.display = "block";
+        };
+
+        frame.src = reportUrl.toString();
+    }
+    catch (e) {
+        console.error(e);
+        alert("Unable to load report.\n" + e.message);
+    }
+}
+
+loadReport();
+</script>
+
+</body>
+</html>
